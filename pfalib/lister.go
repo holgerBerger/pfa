@@ -29,7 +29,7 @@ func List(reader io.Reader) *[]FileSection {
 
 		switch sectionheader.Type {
 		// file
-		case int16(fileE):
+		case uint16(fileE):
 			fileheaderbuffer := make([]byte, sectionheader.HeaderSize)
 			_, err := reader.Read(fileheaderbuffer)
 			if err != nil {
@@ -41,8 +41,8 @@ func List(reader io.Reader) *[]FileSection {
 			}
 			list = append(list, fileheader)
 
-		// file body
-		case int16(filebodyE):
+			// file body
+		case uint16(filebodyE):
 			err := binary.Read(reader, binary.BigEndian, &filebodyheader)
 			if err != nil {
 				panic(err)
@@ -53,20 +53,20 @@ func List(reader io.Reader) *[]FileSection {
 				panic(err)
 			}
 
-		// file end
-		case int16(filefooterE):
+			// file end
+		case uint16(filefooterE):
 			err := binary.Read(reader, binary.BigEndian, &filefooterheader)
 			if err != nil {
 				panic(err)
 			}
 
-		// directory
-		case int16(directoryE):
+			// directory
+		case uint16(directoryE):
 			fmt.Fprintln(os.Stderr, "directory not yet supported")
 			// FIXME
 
-		// softlink
-		case int16(softlinkE):
+			// softlink
+		case uint16(softlinkE):
 			fmt.Fprintln(os.Stderr, "softlink not yet supported")
 			// FIXME
 

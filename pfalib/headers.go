@@ -9,9 +9,9 @@ type ArchiveHeader struct {
 
 // SectionHeader is at start of section and identifies following header
 type SectionHeader struct {
-	Magic      int32 // PFA1
-	Type       int16 // type of section
-	HeaderSize int16 // size of following JSON header
+	Magic      uint32 // PFA1
+	Type       uint16 // type of section
+	HeaderSize uint16 // size of following JSON header
 }
 
 type sectionType uint16

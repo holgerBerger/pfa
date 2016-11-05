@@ -119,7 +119,7 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 
 	// write header
 	w.writerlock.Lock()
-	binary.Write(w.writer, binary.BigEndian, SectionHeader{int32(0x46503141), int16(fileE), int16(len(fh))})
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(fileE), uint16(len(fh))})
 	w.writer.Write(fh)
 	w.writerlock.Unlock()
 
@@ -131,7 +131,7 @@ func (w *ArchiveWriter) writeFileFooter(fileid int64) {
 	w.writerlock.Lock()
 
 	// write header
-	binary.Write(w.writer, binary.BigEndian, SectionHeader{int32(0x46503141), int16(filefooterE), int16(0)})
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filefooterE), uint16(0)})
 	binary.Write(w.writer, binary.BigEndian, FileFooter{uint64(fileid), uint64(0) /* FIXME CRC*/})
 
 	w.writerlock.Unlock()
@@ -142,7 +142,7 @@ func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
 	w.writerlock.Lock()
 
 	// write header
-	binary.Write(w.writer, binary.BigEndian, SectionHeader{int32(0x46503141), int16(filebodyE), int16(0)})
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filebodyE), uint16(0)})
 	binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(buffer))})
 	// write data
 	w.writer.Write(buffer)
