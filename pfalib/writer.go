@@ -51,7 +51,7 @@ func (w *ArchiveWriter) Close() int64 {
 	return w.nextid
 }
 
-///// private functions /////////
+/************* private functions **************/
 
 // readWorker runs in parallel and processes ibnput objects, supports
 // files and directories
