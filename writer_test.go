@@ -18,7 +18,7 @@ func TestNew(t *testing.T) {
 		fmt.Fprint(os.Stderr, "test setup is not working!\n")
 		t.Fatal()
 	}
-	direntry := pfalib.DirEntry{Path: "testdata/a", File: fileinfo}
+	direntry := pfalib.DirEntry{Path: "testdata", File: fileinfo}
 	archivewriter.AppendFile(direntry)
 	archivewriter.AppendFile(direntry)
 
@@ -27,7 +27,7 @@ func TestNew(t *testing.T) {
 		fmt.Fprint(os.Stderr, "test setup is not working!\n")
 		t.Fatal()
 	}
-	direntry = pfalib.DirEntry{Path: "testdata/b", File: fileinfo}
+	direntry = pfalib.DirEntry{Path: "testdata", File: fileinfo}
 	archivewriter.AppendFile(direntry)
 	archivewriter.AppendFile(direntry)
 
@@ -42,5 +42,10 @@ func TestNew(t *testing.T) {
 		t.Error("archive does not contain file b")
 	}
 
-	_ = pfalib.List(writer)
+	//fmt.Println(writer)
+	reader := bytes.NewReader(writer.Bytes())
+	l := *pfalib.List(reader)
+	if len(l) != 4 {
+		t.Error("wrong number of files read from archive")
+	}
 }

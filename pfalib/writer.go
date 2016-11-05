@@ -1,12 +1,12 @@
 package pfalib
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"sync"
-
-	capnp "zombiezen.com/go/capnproto2"
 )
 
 // DirEntry is used to pass file information into archive writer
@@ -73,7 +73,7 @@ func (w *ArchiveWriter) readWorker() {
 // readFile reads a file and pushes it into archive
 func (w *ArchiveWriter) readFile(file DirEntry) {
 	buffer := make([]byte, w.blocksize)
-	f, err := os.Open(file.Path)
+	f, err := os.Open(file.Path + "/" + file.File.Name())
 	if err == nil {
 		fileid := w.writeFileHeader(file)
 		// read blocks and stream them into file
@@ -90,10 +90,11 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 				w.writeFileFragment(fileid, buffer[:n])
 			}
 		} // file read loop
+		w.writeFileFooter(fileid)
+		f.Close()
 	} else {
 		fmt.Fprint(os.Stderr, "could not open file <", file.Path, "> for reading!\n")
 	}
-	f.Close()
 }
 
 // writeFileHeader writes header to archive and returns unique id for the file
@@ -103,59 +104,48 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 	w.nextid++
 	w.idlock.Unlock()
 
-	// create header
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	fh, err := json.Marshal(FileSection{
+		DirectorySection{
+			file.Path + "/" + file.File.Name(),
+			0, 0, "", "", 0, 0, 0,
+			uint64(file.File.Mode().Perm())},
+		uint64(file.File.Size()),
+		uint64(id),
+		uint16(none),
+	})
 	if err != nil {
 		panic(err)
 	}
-
-	fh, err := NewRootFileEntry(seg)
-	if err != nil {
-		panic(err)
-	}
-	fh.SetName(file.Path /* + "/" + file.File.Name() */)
-	fh.SetMode(int64(file.File.Mode().Perm()))
-
-	// TODO fill all headers
-
-	fh.SetSize(file.File.Size())
-	fh.SetId(id)
 
 	// write header
 	w.writerlock.Lock()
-	err = capnp.NewEncoder(w.writer).Encode(msg)
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{int32(0x46503141), int16(fileE), int16(len(fh))})
+	w.writer.Write(fh)
 	w.writerlock.Unlock()
-	if err != nil {
-		panic(err)
-	}
 
 	return id
 }
 
-// writeFileFragment writes part of a file to archive
-func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
-
-	// create header
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		panic(err)
-	}
-
-	fs, err := NewRootFileSegment(seg)
-	if err != nil {
-		panic(err)
-	}
-	fs.SetId(fileid)
-	fs.SetSize(int64(len(buffer)))
+// writeFileFooter writes footer at file end
+func (w *ArchiveWriter) writeFileFooter(fileid int64) {
+	w.writerlock.Lock()
 
 	// write header
-	w.writerlock.Lock()
-	err = capnp.NewEncoder(w.writer).Encode(msg)
-	if err != nil {
-		panic(err)
-	}
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{int32(0x46503141), int16(filefooterE), int16(0)})
+	binary.Write(w.writer, binary.BigEndian, FileFooter{uint64(fileid), uint64(0) /* FIXME CRC*/})
 
+	w.writerlock.Unlock()
+}
+
+// writeFileFragment writes part of a file to archive
+func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
+	w.writerlock.Lock()
+
+	// write header
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{int32(0x46503141), int16(filebodyE), int16(0)})
+	binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(buffer))})
 	// write data
 	w.writer.Write(buffer)
+
 	w.writerlock.Unlock()
 }
