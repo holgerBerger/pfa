@@ -27,8 +27,9 @@ func List(reader io.Reader) *[]FileSection {
 			break
 		}
 
+		switch sectionheader.Type {
 		// file
-		if sectionheader.Type == int16(fileE) {
+		case int16(fileE):
 			fileheaderbuffer := make([]byte, sectionheader.HeaderSize)
 			_, err := reader.Read(fileheaderbuffer)
 			if err != nil {
@@ -39,10 +40,9 @@ func List(reader io.Reader) *[]FileSection {
 				panic(err)
 			}
 			list = append(list, fileheader)
-		}
 
 		// file body
-		if sectionheader.Type == int16(filebodyE) {
+		case int16(filebodyE):
 			err := binary.Read(reader, binary.BigEndian, &filebodyheader)
 			if err != nil {
 				panic(err)
@@ -52,29 +52,28 @@ func List(reader io.Reader) *[]FileSection {
 			if err != nil {
 				panic(err)
 			}
-		}
 
 		// file end
-		if sectionheader.Type == int16(filefooterE) {
+		case int16(filefooterE):
 			err := binary.Read(reader, binary.BigEndian, &filefooterheader)
 			if err != nil {
 				panic(err)
 			}
-		}
 
 		// directory
-		if sectionheader.Type == int16(directoryE) {
+		case int16(directoryE):
 			fmt.Fprintln(os.Stderr, "directory not yet supported")
 			// FIXME
-		}
 
 		// softlink
-		if sectionheader.Type == int16(softlinkE) {
+		case int16(softlinkE):
 			fmt.Fprintln(os.Stderr, "softlink not yet supported")
 			// FIXME
-		}
 
-	}
+		default:
+			panic("unexpted type in section header." /* + sectionheader.Type */)
 
+		} // switch
+	} // for
 	return &list
 }
