@@ -7,6 +7,10 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
+
+	"github.com/Datadog/zstd"
+	"github.com/golang/snappy"
 )
 
 // DirEntry is used to pass file information into archive writer
@@ -25,14 +29,18 @@ type ArchiveWriter struct {
 	writerlock    *sync.Mutex     // lock to protect writer
 	nextid        int64           // next fileid to be written
 	idlock        *sync.Mutex     // mutex to protect nextid
+	starttime     time.Time       // time of creation of writer
+	byteswritten  int64           // bytes written to file
+	cbyteswritten int64           // bytes written after compression
+	compression   compressionType // type of compression
 }
 
 // NewArchiveWriter creates a new archive object,
 // writing to "writer", which can be a file or a size limited
 // multifile container or a multistream container
 // reading with "blocksize" with "numreaders" reading goroutines
-func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int) *ArchiveWriter {
-	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 1, new(sync.Mutex)}
+func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compression compressionType) *ArchiveWriter {
+	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 1, new(sync.Mutex), time.Now(), 0, 0, compression}
 	for i := 0; i < numreaders; i++ {
 		go archivewriter.readWorker()
 	}
@@ -45,10 +53,10 @@ func (w *ArchiveWriter) AppendFile(name DirEntry) {
 }
 
 // Close finishes writing to the archive, returning number of written files
-func (w *ArchiveWriter) Close() int64 {
+func (w *ArchiveWriter) Close() (int64, time.Duration, int64, int64) {
 	close(w.appendchannel)
 	w.workgroup.Wait()
-	return w.nextid
+	return w.nextid, time.Since(w.starttime), w.byteswritten, w.cbyteswritten
 }
 
 /************* private functions **************/
@@ -125,6 +133,7 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 	w.idlock.Lock()
 	id := w.nextid
 	w.nextid++
+	w.byteswritten += file.File.Size()
 	w.idlock.Unlock()
 
 	fh, err := json.Marshal(FileSection{
@@ -134,7 +143,7 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 			uint64(file.File.Mode().Perm())},
 		uint64(file.File.Size()),
 		uint64(id),
-		uint16(none),
+		uint16(w.compression),
 	})
 	if err != nil {
 		panic(err)
@@ -162,13 +171,39 @@ func (w *ArchiveWriter) writeFileFooter(fileid int64) {
 
 // writeFileFragment writes part of a file to archive
 func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
-	w.writerlock.Lock()
 
-	// write header
-	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filebodyE), uint16(0)})
-	binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(buffer))})
-	// write data
-	w.writer.Write(buffer)
+	switch w.compression {
+	case SnappyC:
+		cbuffer := make([]byte, 2*w.blocksize)
+		cbuffer = snappy.Encode(cbuffer, buffer)
+		w.writerlock.Lock()
+		// write header
+		binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filebodyE), uint16(0)})
+		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(cbuffer))})
+		// write data
+		w.cbyteswritten += int64(len(cbuffer))
+		w.writer.Write(cbuffer)
+	case ZstandardC:
+		cbuffer := make([]byte, 2*w.blocksize)
+		cbuffer, _ = zstd.Compress(cbuffer, buffer)
+		w.writerlock.Lock()
+		// write header
+		binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filebodyE), uint16(0)})
+		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(cbuffer))})
+		// write data
+		w.cbyteswritten += int64(len(cbuffer))
+		w.writer.Write(cbuffer)
+	case NoneC:
+		w.writerlock.Lock()
+		// write header
+		binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filebodyE), uint16(0)})
+		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(buffer))})
+		// write data
+		w.byteswritten += int64(len(buffer))
+		w.writer.Write(buffer)
+	default:
+		panic("arrchive writer called with unsupported compressiontype.")
+	}
 
 	w.writerlock.Unlock()
 }

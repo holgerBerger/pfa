@@ -27,11 +27,11 @@ const (
 type compressionType uint16
 
 const (
-	none compressionType = iota
-	zstandard
-	zlib
-	snappy
-	lzo
+	NoneC compressionType = iota
+	ZstandardC
+	ZlibC
+	SnappyC
+	LzoC
 )
 
 // DirectorySection represents a directory
