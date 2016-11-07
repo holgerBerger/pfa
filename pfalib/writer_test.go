@@ -9,7 +9,7 @@ import (
 
 func TestNew(t *testing.T) {
 	writer := bytes.NewBuffer(make([]byte, 0, 1024))
-	archivewriter := NewArchiveWriter(writer, 128, 8)
+	archivewriter := NewArchiveWriter(writer, 128, 8, NoneC)
 
 	fileinfo, err := os.Stat("testdata/a")
 	if err != nil {
@@ -37,7 +37,8 @@ func TestNew(t *testing.T) {
 	direntry = DirEntry{Path: "testdata", File: fileinfo}
 	archivewriter.AppendFile(direntry)
 
-	if archivewriter.Close() != 4 {
+	files, _, _, _ := archivewriter.Close()
+	if files != 5 {
 		t.Error("unexpected number of files written.")
 	}
 
