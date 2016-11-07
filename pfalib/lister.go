@@ -17,6 +17,7 @@ func List(reader io.Reader) *[]FileSection {
 		fileheader       FileSection
 		filebodyheader   FilebodySection
 		filefooterheader FileFooter
+		directoryheader  DirectorySection
 	)
 
 	for {
@@ -62,8 +63,16 @@ func List(reader io.Reader) *[]FileSection {
 
 			// directory
 		case uint16(directoryE):
-			fmt.Fprintln(os.Stderr, "directory not yet supported")
-			// FIXME
+			dirheaderbuffer := make([]byte, sectionheader.HeaderSize)
+			_, err := reader.Read(dirheaderbuffer)
+			if err != nil {
+				panic(err)
+			}
+			err = json.Unmarshal(dirheaderbuffer, &directoryheader)
+			if err != nil {
+				panic(err)
+			}
+			list = append(list, FileSection{directoryheader, 0, 0, 0})
 
 			// softlink
 		case uint16(softlinkE):

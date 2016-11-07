@@ -32,7 +32,7 @@ type ArchiveWriter struct {
 // multifile container or a multistream container
 // reading with "blocksize" with "numreaders" reading goroutines
 func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int) *ArchiveWriter {
-	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 0, new(sync.Mutex)}
+	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 1, new(sync.Mutex)}
 	for i := 0; i < numreaders; i++ {
 		go archivewriter.readWorker()
 	}
@@ -59,8 +59,9 @@ func (w *ArchiveWriter) readWorker() {
 	w.workgroup.Add(1)
 	for f := range w.appendchannel {
 		if f.File.IsDir() {
+			w.readDir(f)
 			// TODO directory handling
-			fmt.Fprint(os.Stderr, "file <", f.Path+"/"+f.File.Name(), "> is of unsupported type.\n")
+			//fmt.Fprint(os.Stderr, "file <", f.Path+"/"+f.File.Name(), "> is of unsupported type.\n")
 		} else if f.File.Mode().IsRegular() {
 			w.readFile(f)
 		} else {
@@ -68,6 +69,11 @@ func (w *ArchiveWriter) readWorker() {
 		}
 	}
 	w.workgroup.Done()
+}
+
+// readDir adds a directory to archive
+func (w *ArchiveWriter) readDir(file DirEntry) {
+	w.writeDirHeader(file)
 }
 
 // readFile reads a file and pushes it into archive
@@ -95,6 +101,23 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 	} else {
 		fmt.Fprint(os.Stderr, "could not open file <", file.Path, "> for reading!\n")
 	}
+}
+
+func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
+	fh, err := json.Marshal(DirectorySection{
+		file.Path + "/" + file.File.Name(),
+		0, 0, "", "", 0, 0, 0,
+		uint64(file.File.Mode().Perm()),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// write header
+	w.writerlock.Lock()
+	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(directoryE), uint16(len(fh))})
+	w.writer.Write(fh)
+	w.writerlock.Unlock()
 }
 
 // writeFileHeader writes header to archive and returns unique id for the file

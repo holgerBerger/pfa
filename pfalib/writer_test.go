@@ -29,6 +29,14 @@ func TestNew(t *testing.T) {
 	archivewriter.AppendFile(direntry)
 	archivewriter.AppendFile(direntry)
 
+	fileinfo, err = os.Stat("testdata/c")
+	if err != nil {
+		fmt.Fprint(os.Stderr, "test setup is not working!\n")
+		t.Fatal()
+	}
+	direntry = DirEntry{Path: "testdata", File: fileinfo}
+	archivewriter.AppendFile(direntry)
+
 	if archivewriter.Close() != 4 {
 		t.Error("unexpected number of files written.")
 	}
@@ -43,7 +51,7 @@ func TestNew(t *testing.T) {
 	//fmt.Println(writer)
 	reader := bytes.NewReader(writer.Bytes())
 	l := *List(reader)
-	if len(l) != 4 {
+	if len(l) != 5 {
 		t.Error("wrong number of files read from archive")
 	}
 }
