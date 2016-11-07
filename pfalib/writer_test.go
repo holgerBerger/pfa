@@ -1,24 +1,22 @@
-package main
+package pfalib
 
 import (
 	"bytes"
 	"fmt"
 	"os"
 	"testing"
-
-	"github.com/holgerBerger/pfa/pfalib"
 )
 
 func TestNew(t *testing.T) {
 	writer := bytes.NewBuffer(make([]byte, 0, 1024))
-	archivewriter := pfalib.NewArchiveWriter(writer, 128, 8)
+	archivewriter := NewArchiveWriter(writer, 128, 8)
 
 	fileinfo, err := os.Stat("testdata/a")
 	if err != nil {
 		fmt.Fprint(os.Stderr, "test setup is not working!\n")
 		t.Fatal()
 	}
-	direntry := pfalib.DirEntry{Path: "testdata", File: fileinfo}
+	direntry := DirEntry{Path: "testdata", File: fileinfo}
 	archivewriter.AppendFile(direntry)
 	archivewriter.AppendFile(direntry)
 
@@ -27,7 +25,7 @@ func TestNew(t *testing.T) {
 		fmt.Fprint(os.Stderr, "test setup is not working!\n")
 		t.Fatal()
 	}
-	direntry = pfalib.DirEntry{Path: "testdata", File: fileinfo}
+	direntry = DirEntry{Path: "testdata", File: fileinfo}
 	archivewriter.AppendFile(direntry)
 	archivewriter.AppendFile(direntry)
 
@@ -44,7 +42,7 @@ func TestNew(t *testing.T) {
 
 	//fmt.Println(writer)
 	reader := bytes.NewReader(writer.Bytes())
-	l := *pfalib.List(reader)
+	l := *List(reader)
 	if len(l) != 4 {
 		t.Error("wrong number of files read from archive")
 	}
