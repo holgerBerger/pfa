@@ -24,10 +24,10 @@ const (
 	filefooterE
 )
 
-type compressionType uint16
+type CompressionType uint16
 
 const (
-	NoneC compressionType = iota
+	NoneC CompressionType = iota
 	ZstandardC
 	ZlibC
 	SnappyC

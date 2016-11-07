@@ -11,16 +11,15 @@ import (
 )
 
 var opts struct {
-	Create    bool  `long:"create" short:"c" description:"create archive"`
-	List      bool  `long:"list" short:"l" description:"list archive"`
-	Extract   bool  `long:"extract" short:"e" description:"extract archive"`
-	Scanners  int   `long:"scanners" short:"s" default:"32" description:"number of threads scanning directories"`
-	Blocksize int32 `long:"blocksize" short:"b" default:"1024" description:"blocksize in KiB"`
-	//	Writers     int    `long:"writers" short:"w" default:"4" description:"number of writing processes, equals streams in archive."`
-	Readers int `long:"readers" short:"r" default:"32" description:"number of reading threads"`
-	//	Archivesize int64  `long:"filesize" short:"f" default:"16" description:"filesize in GiB of one archive file"`
-	Output string `long:"output" short:"o" description:"file name of output archive in create mode"`
-	Input  string `long:"input" short:"i" description:"file name of input archive in list and extract mode"`
+	Create      bool   `long:"create" short:"c" description:"create archive"`
+	List        bool   `long:"list" short:"l" description:"list archive"`
+	Extract     bool   `long:"extract" short:"e" description:"extract archive"`
+	Scanners    int    `long:"scanners" short:"s" default:"32" description:"number of threads scanning directories"`
+	Blocksize   int32  `long:"blocksize" short:"b" default:"1024" description:"blocksize in KiB"`
+	Readers     int    `long:"readers" short:"r" default:"32" description:"number of reading threads"`
+	Output      string `long:"output" short:"o" description:"file name of output archive in create mode"`
+	Input       string `long:"input" short:"i" description:"file name of input archive in list and extract mode"`
+	Compression string `long:"compression" short:"p" default:"none" description:"compression, one of <none>, <zstd> or <snappy>"`
 }
 
 func main() {
@@ -59,6 +58,18 @@ func create(args []string) {
 		float64(len(scanner.Files))/time.Since(scanstart).Seconds(),
 	)
 
+	// determine compression method
+	var compressionmethod pfalib.CompressionType
+
+	compressionmethod = pfalib.NoneC
+
+	if opts.Compression == "snappy" {
+		compressionmethod = pfalib.SnappyC
+	}
+	if opts.Compression == "zstd" {
+		compressionmethod = pfalib.ZstandardC
+	}
+
 	// create outfile
 	outfile, err := os.Create(opts.Output)
 	if err != nil {
@@ -68,7 +79,7 @@ func create(args []string) {
 	boutfile := bufio.NewWriterSize(outfile, int(opts.Blocksize*1024))
 
 	// create archive write
-	archiver := pfalib.NewArchiveWriter(boutfile, opts.Blocksize*1024, opts.Readers, pfalib.ZstandardC)
+	archiver := pfalib.NewArchiveWriter(boutfile, opts.Blocksize*1024, opts.Readers, compressionmethod)
 
 	// append all files
 	for _, f := range scanner.Files {
@@ -82,7 +93,9 @@ func create(args []string) {
 
 	fmt.Printf("written %d files in %1.1f seconds, written with %1.2f MB/s.\n",
 		files, timediff.Seconds(), (float64(cbytes)/(timediff.Seconds()))/(1024*1024))
-	fmt.Printf("%f%% compression.\n", float64(cbytes)/float64(bytes)*100.0)
+	if compressionmethod != pfalib.NoneC {
+		fmt.Printf("%f%% compression.\n", float64(cbytes)/float64(bytes)*100.0)
+	}
 
 }
 

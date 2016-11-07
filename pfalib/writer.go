@@ -32,14 +32,14 @@ type ArchiveWriter struct {
 	starttime     time.Time       // time of creation of writer
 	byteswritten  int64           // bytes written to file
 	cbyteswritten int64           // bytes written after compression
-	compression   compressionType // type of compression
+	compression   CompressionType // type of compression
 }
 
 // NewArchiveWriter creates a new archive object,
 // writing to "writer", which can be a file or a size limited
 // multifile container or a multistream container
 // reading with "blocksize" with "numreaders" reading goroutines
-func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compression compressionType) *ArchiveWriter {
+func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compression CompressionType) *ArchiveWriter {
 	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 1, new(sync.Mutex), time.Now(), 0, 0, compression}
 	for i := 0; i < numreaders; i++ {
 		go archivewriter.readWorker()

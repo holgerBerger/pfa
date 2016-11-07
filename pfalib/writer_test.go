@@ -9,7 +9,7 @@ import (
 
 func TestNew(t *testing.T) {
 	writer := bytes.NewBuffer(make([]byte, 0, 1024))
-	archivewriter := NewArchiveWriter(writer, 128, 8, NoneC)
+	archivewriter := NewArchiveWriter(writer, 128, 8, ZstandardC)
 
 	fileinfo, err := os.Stat("testdata/a")
 	if err != nil {
