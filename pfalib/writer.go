@@ -18,7 +18,7 @@ type DirEntry struct {
 // ArchiveWriter is the archive streaming object
 type ArchiveWriter struct {
 	writer        io.Writer       // stream to write to
-	blocksize     int             // reading blocksize
+	blocksize     int32           // reading blocksize
 	numreaders    int             // number of parallel readers
 	appendchannel chan DirEntry   // channel to send files through for appending
 	workgroup     *sync.WaitGroup // waitgroup for readers
@@ -31,7 +31,7 @@ type ArchiveWriter struct {
 // writing to "writer", which can be a file or a size limited
 // multifile container or a multistream container
 // reading with "blocksize" with "numreaders" reading goroutines
-func NewArchiveWriter(writer io.Writer, blocksize int, numreaders int) *ArchiveWriter {
+func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int) *ArchiveWriter {
 	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 0, new(sync.Mutex)}
 	for i := 0; i < numreaders; i++ {
 		go archivewriter.readWorker()
