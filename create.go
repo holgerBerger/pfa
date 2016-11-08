@@ -126,6 +126,16 @@ func createMultiple(args []string, n int) {
 			for f := range balancer {
 				archiver[n].AppendFile(f)
 			}
+			files, timediff, bytes, cbytes := archiver[n].Close()
+			boutfile[n].Flush()
+			outfile[n].Close()
+
+			// print statistics
+			fmt.Printf("written %d files in %1.1f seconds with %1.2f MB/s.\n",
+				files, timediff.Seconds(), (float64(cbytes)/(timediff.Seconds()))/(1024*1024))
+			if compressionmethod != pfalib.NoneC {
+				fmt.Printf("%f%% compression.\n", float64(cbytes)/float64(bytes)*100.0)
+			}
 			balancergroup.Done()
 		}(i)
 	}
@@ -134,19 +144,4 @@ func createMultiple(args []string, n int) {
 	}
 	close(balancer)
 	balancergroup.Wait()
-
-	// finalize archive
-	for i := 0; i < n; i++ {
-		files, timediff, bytes, cbytes := archiver[i].Close()
-		boutfile[i].Flush()
-		outfile[i].Close()
-
-		// print statistics
-		fmt.Printf("written %d files in %1.1f seconds with %1.2f MB/s.\n",
-			files, timediff.Seconds(), (float64(cbytes)/(timediff.Seconds()))/(1024*1024))
-		if compressionmethod != pfalib.NoneC {
-			fmt.Printf("%f%% compression.\n", float64(cbytes)/float64(bytes)*100.0)
-		}
-	}
-
 }
