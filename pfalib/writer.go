@@ -199,7 +199,7 @@ func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
 		binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filebodyE), uint16(0)})
 		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(buffer))})
 		// write data
-		w.byteswritten += int64(len(buffer))
+		w.cbyteswritten += int64(len(buffer))
 		w.writer.Write(buffer)
 	default:
 		panic("arrchive writer called with unsupported compressiontype.")
