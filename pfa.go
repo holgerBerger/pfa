@@ -34,7 +34,7 @@ func main() {
 			os.Exit(1)
 		}
 		if opts.Files > 1 {
-			createMultiple(args, opts.Files)
+			createMultiple2(args, opts.Files)
 		} else {
 			create(args)
 		}
