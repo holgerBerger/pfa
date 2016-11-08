@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	flags "github.com/jessevdk/go-flags"
@@ -28,15 +29,25 @@ func main() {
 	}
 
 	if opts.Create {
+		if len(opts.Output) == 0 {
+			fmt.Fprintln(os.Stderr, "create mode requires output file!")
+			os.Exit(1)
+		}
 		if opts.Files > 1 {
 			createMultiple(args, opts.Files)
 		} else {
 			create(args)
 		}
-	}
-
-	if opts.List {
+	} else if opts.Extract {
+		if len(opts.Input) == 0 {
+			fmt.Fprintln(os.Stderr, "extract mode requires inut file!")
+			os.Exit(1)
+		}
+		// TODO
+	} else if opts.List {
 		list()
+	} else {
+		fmt.Fprintln(os.Stderr, "create, extract or list has to be chosen.")
 	}
 
 }
