@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"hash/crc64"
 	"io"
 	"os"
 	"sync"
@@ -33,6 +34,7 @@ type ArchiveWriter struct {
 	byteswritten  int64           // bytes written to file
 	cbyteswritten int64           // bytes written after compression
 	compression   CompressionType // type of compression
+	crctable      *crc64.Table    // crc polynomial
 }
 
 // NewArchiveWriter creates a new archive object,
@@ -40,10 +42,12 @@ type ArchiveWriter struct {
 // multifile container or a multistream container
 // reading with "blocksize" with "numreaders" reading goroutines
 func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compression CompressionType) *ArchiveWriter {
-	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup), new(sync.Mutex), 1, new(sync.Mutex), time.Now(), 0, 0, compression}
+	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup),
+		new(sync.Mutex), 1, new(sync.Mutex), time.Now(), 0, 0, compression, nil}
 	for i := 0; i < numreaders; i++ {
 		go archivewriter.readWorker()
 	}
+	archivewriter.crctable = crc64.MakeTable(crc64.ISO) // ise ISO polynomial
 	return &archivewriter
 }
 
@@ -87,6 +91,9 @@ func (w *ArchiveWriter) readDir(file DirEntry) {
 // readFile reads a file and pushes it into archive
 func (w *ArchiveWriter) readFile(file DirEntry) {
 	buffer := make([]byte, w.blocksize)
+
+	crc := crc64.New(w.crctable)
+
 	f, err := os.Open(file.Path + "/" + file.File.Name())
 	if err == nil {
 		fileid := w.writeFileHeader(file)
@@ -101,10 +108,11 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 			}
 			//fmt.Println("write fragment of", name, n, len(buffer), id)
 			if n > 0 {
+				crc.Write(buffer[:n])
 				w.writeFileFragment(fileid, buffer[:n])
 			}
 		} // file read loop
-		w.writeFileFooter(fileid)
+		w.writeFileFooter(fileid, crc.Sum64())
 		f.Close()
 	} else {
 		fmt.Fprint(os.Stderr, "could not open file <", file.Path, "> for reading!\n")
@@ -159,12 +167,12 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 }
 
 // writeFileFooter writes footer at file end
-func (w *ArchiveWriter) writeFileFooter(fileid int64) {
+func (w *ArchiveWriter) writeFileFooter(fileid int64, crc uint64) {
 	w.writerlock.Lock()
 
 	// write header
 	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filefooterE), uint16(0)})
-	binary.Write(w.writer, binary.BigEndian, FileFooter{uint64(fileid), uint64(0) /* FIXME CRC*/})
+	binary.Write(w.writer, binary.BigEndian, FileFooter{uint64(fileid), crc})
 
 	w.writerlock.Unlock()
 }
