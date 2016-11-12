@@ -1,0 +1,6 @@
+- avoid adding output file - either delete it beforehand, or 
+  remove directories which could contain it, or do not scan it
+  if you hit it, or check when adding files
+- full file mode, owners and timestamps etc
+- symlinks
+- other files types
