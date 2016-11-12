@@ -147,9 +147,8 @@ func createMultiple(args []string, n int) {
 	balancergroup.Wait()
 }
 
-/// trial with work steeling
-
 // create outfile file
+// work stealing experiment
 func createMultiple2(args []string, n int) {
 	// we scan all files beforehand, to get an idea how big the tree is
 	// this wastes some time for large trees, but we scan fast...
@@ -212,9 +211,9 @@ func createMultiple2(args []string, n int) {
 					break
 				}
 				f, scanner.Files = scanner.Files[len(scanner.Files)-1], scanner.Files[:len(scanner.Files)-1]
-				archiver[n].AppendFile(f)
 				mutex.Unlock()
-				runtime.Gosched()
+				runtime.Gosched() // have to call sched here, so others get some data
+				archiver[n].AppendFile(f)
 			}
 
 			files, timediff, bytes, cbytes := archiver[n].Close()
