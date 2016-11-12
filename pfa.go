@@ -43,7 +43,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "extract mode requires inut file!")
 			os.Exit(1)
 		}
-		// TODO
+		extract()
 	} else if opts.List {
 		list()
 	} else {
