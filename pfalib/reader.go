@@ -82,6 +82,7 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 			if err != nil {
 				panic(err)
 			}
+			fmt.Println("bodysegment")
 
 			// file end
 		case uint16(filefooterE):
@@ -89,6 +90,7 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 			if err != nil {
 				panic(err)
 			}
+			fmt.Println("crc", filefooterheader.CRC)
 
 			// directory
 		case uint16(directoryE):
