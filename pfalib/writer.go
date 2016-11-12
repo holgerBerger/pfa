@@ -7,6 +7,7 @@ import (
 	"hash/crc64"
 	"io"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -73,11 +74,11 @@ func (w *ArchiveWriter) readWorker() {
 		if f.File.IsDir() {
 			w.readDir(f)
 			// TODO directory handling
-			//fmt.Fprint(os.Stderr, "file <", f.Path+"/"+f.File.Name(), "> is of unsupported type.\n")
+			//fmt.Fprint(os.Stderr, "file <", path.Join(f.Path,f.File.Name()), "> is of unsupported type.\n")
 		} else if f.File.Mode().IsRegular() {
 			w.readFile(f)
 		} else {
-			fmt.Fprint(os.Stderr, "file <", f.Path+"/"+f.File.Name(), "> is of unsupported type.\n")
+			fmt.Fprint(os.Stderr, "file <", path.Join(f.Path, f.File.Name()), "> is of unsupported type.\n")
 		}
 	}
 	w.workgroup.Done()
@@ -94,7 +95,7 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 
 	crc := crc64.New(w.crctable)
 
-	f, err := os.Open(file.Path + "/" + file.File.Name())
+	f, err := os.Open(path.Join(file.Path, file.File.Name()))
 	if err == nil {
 		fileid := w.writeFileHeader(file)
 		// read blocks and stream them into file
@@ -121,7 +122,7 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 
 func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
 	fh, err := json.Marshal(DirectorySection{
-		file.Path + "/" + file.File.Name(),
+		path.Join(file.Path, file.File.Name()),
 		0, 0, "", "", 0, 0, 0,
 		uint64(file.File.Mode().Perm()),
 	})
@@ -146,7 +147,7 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 
 	fh, err := json.Marshal(FileSection{
 		DirectorySection{
-			file.Path + "/" + file.File.Name(),
+			path.Join(file.Path, file.File.Name()),
 			0, 0, "", "", 0, 0, 0,
 			uint64(file.File.Mode().Perm())},
 		uint64(file.File.Size()),

@@ -8,7 +8,9 @@ package main
 */
 
 import (
+	"fmt"
 	"os"
+	"path"
 	"sync"
 
 	"github.com/holgerBerger/pfa/pfalib"
@@ -35,8 +37,31 @@ func NewScanner() *Scanner {
 
 // AddDir adds a directory to be scanned
 func (s *Scanner) AddDir(dir string) {
+	cleaned := path.Clean(dir)
+
+	// exclude directories starting with ..
+	if len(cleaned) >= 2 && cleaned[:2] == ".." {
+		fmt.Fprintln(os.Stderr, "ommited ", dir)
+		return
+	}
+
+	/* FIXME
+
+	// we try to avoid adding output file into output (=recursion),
+	// by checking if output file might be below input directory
+	if path.IsAbs(cleaned) {
+		cwd, _ := os.Getwd()
+		if len(cleaned) <= len(cwd) && cwd[:len(cleaned)] == cleaned {
+			fmt.Fprintln(os.Stderr, "ommited ", dir)
+			return
+		}
+	}
+
+	*/
+
 	s.scangroup.Add(1)
-	s.scannerChannel <- dir
+	s.scannerChannel <- cleaned
+
 }
 
 // StartScan starts nr go-routines, and scans all directories added using AddDir before
@@ -75,7 +100,7 @@ func (s *Scanner) Scanner() {
 					// this could block
 					go func(name string) {
 						s.scannerChannel <- name
-					}(dir + "/" + entry.Name())
+					}(path.Join(dir, entry.Name()))
 				} else {
 					totalsize += entry.Size()
 				}
