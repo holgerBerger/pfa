@@ -88,12 +88,6 @@ func (s *Scanner) Scanner() {
 		if err == nil {
 			direntries, _ := f.Readdir(0)
 
-			s.FileMutex.Lock()
-			for _, i := range direntries {
-				s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: i})
-			}
-			s.FileMutex.Unlock()
-
 			for _, entry := range direntries {
 				if entry.IsDir() {
 					s.scangroup.Add(1)
@@ -105,6 +99,13 @@ func (s *Scanner) Scanner() {
 					totalsize += entry.Size()
 				}
 			}
+
+			// append after handling directories, to make sure directories are created first
+			s.FileMutex.Lock()
+			for _, i := range direntries {
+				s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: i})
+			}
+			s.FileMutex.Unlock()
 
 			f.Close()
 		}

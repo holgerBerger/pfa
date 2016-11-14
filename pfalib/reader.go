@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"sync"
-	"time"
 )
 
 // ArchiveReader is the archive reader object
@@ -18,6 +18,7 @@ type ArchiveReader struct {
 // NewReader creates a archive reader
 func NewReader() *ArchiveReader {
 	archivereader := ArchiveReader{nil, new(sync.WaitGroup)}
+	archivereader.waitgroup.Add(1)
 	return &archivereader
 }
 
@@ -29,7 +30,8 @@ func (r *ArchiveReader) AddFile(file *os.File) {
 
 // Finish processes all the added input files and extracts the data
 func (r *ArchiveReader) Finish() {
-	time.Sleep(100 * time.Millisecond)
+	runtime.Gosched()
+	r.waitgroup.Done()
 	r.waitgroup.Wait()
 	for _, f := range r.archives {
 		f.Close()

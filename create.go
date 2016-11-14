@@ -199,6 +199,8 @@ func createMultiple2(args []string, n int) {
 	var balancergroup sync.WaitGroup
 	var mutex sync.Mutex
 
+	balancergroup.Add(1)
+
 	for i := 0; i < n; i++ {
 		go func(n int) {
 			balancergroup.Add(1)
@@ -229,7 +231,7 @@ func createMultiple2(args []string, n int) {
 			balancergroup.Done()
 		}(i)
 	}
-
-	time.Sleep(time.Second)
+  runtime.Gosched()
+	balancergroup.Done()
 	balancergroup.Wait()
 }
