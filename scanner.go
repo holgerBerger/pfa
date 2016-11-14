@@ -91,10 +91,14 @@ func (s *Scanner) Scanner() {
 			for _, entry := range direntries {
 				if entry.IsDir() {
 					s.scangroup.Add(1)
+					s.FileMutex.Lock()
+					s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: entry})
+					s.FileMutex.Unlock()
 					// this could block
 					go func(name string) {
 						s.scannerChannel <- name
 					}(path.Join(dir, entry.Name()))
+					//s.scannerChannel <- path.Join(dir, entry.Name())
 				} else {
 					totalsize += entry.Size()
 				}
@@ -102,8 +106,10 @@ func (s *Scanner) Scanner() {
 
 			// append after handling directories, to make sure directories are created first
 			s.FileMutex.Lock()
-			for _, i := range direntries {
-				s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: i})
+			for _, entry := range direntries {
+				if !entry.IsDir() {
+					s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: entry})
+				}
 			}
 			s.FileMutex.Unlock()
 
