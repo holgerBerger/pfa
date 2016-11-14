@@ -135,7 +135,7 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 			// FIXME
 
 		default: // ERROR ---------------------------------------------------------
-			panic("unexpted type in section header." /* + sectionheader.Type */)
+			panic("unexpected type in section header." /* + sectionheader.Type */)
 
 		} // switch
 	} // for
