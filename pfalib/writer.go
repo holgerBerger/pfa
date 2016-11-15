@@ -211,7 +211,7 @@ func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
 		w.cbyteswritten += int64(len(buffer))
 		w.writer.Write(buffer)
 	default:
-		panic("arrchive writer called with unsupported compressiontype.")
+		panic("archive writer called with unsupported compression type.")
 	}
 
 	w.writerlock.Unlock()

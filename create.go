@@ -36,9 +36,12 @@ func create(args []string) {
 
 	if opts.Compression == "snappy" {
 		compressionmethod = pfalib.SnappyC
-	}
-	if opts.Compression == "zstd" {
+	} else if opts.Compression == "zstd" {
 		compressionmethod = pfalib.ZstandardC
+	} else if opts.Compression == "none" {
+		compressionmethod = pfalib.NoneC
+	} else {
+		fmt.Fprintln(os.Stderr, "unknown compression method, not compressing.")
 	}
 
 	// create outfile
@@ -231,7 +234,7 @@ func createMultiple2(args []string, n int) {
 			balancergroup.Done()
 		}(i)
 	}
-  runtime.Gosched()
+	runtime.Gosched()
 	balancergroup.Done()
 	balancergroup.Wait()
 }
