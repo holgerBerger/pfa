@@ -23,7 +23,9 @@ type Scanner struct {
 	sizeChannel    chan int64
 	TotalSize      int64
 	FileMutex      sync.RWMutex
+	Roots          []string
 	Files          []pfalib.DirEntry
+	Tree           map[string][]os.FileInfo
 }
 
 // NewScanner creates a scanner, one scanner runs several go-routines
@@ -32,6 +34,8 @@ func NewScanner() *Scanner {
 	scanner.scannerChannel = make(chan string, 10) // FIXME why does 1 not work??
 	scanner.sizeChannel = make(chan int64, 1)
 	scanner.Files = make([]pfalib.DirEntry, 0, 1000)
+	scanner.Tree = make(map[string][]os.FileInfo)
+	scanner.Roots = make([]string, 10)
 	return &scanner
 }
 
@@ -61,6 +65,7 @@ func (s *Scanner) AddDir(dir string) {
 
 	s.scangroup.Add(1)
 	s.scannerChannel <- cleaned
+	s.Roots = append(s.Roots, cleaned)
 
 }
 
@@ -78,6 +83,28 @@ func (s *Scanner) StartScan(nr int) {
 	for i := 0; i < nr; i++ {
 		s.TotalSize += <-s.sizeChannel
 	}
+
+	for _, r := range s.Roots {
+		s.serialize(r)
+	}
+
+	for _, f := range s.Files {
+		fmt.Println(f.Path, f.File.Name())
+	}
+
+}
+
+func (s *Scanner) serialize(dir string) {
+	for _, f := range s.Tree[dir] {
+		if f.IsDir() {
+			s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: f})
+			// fmt.Println("dir ", dir, f.Name())
+			s.serialize(dir + "/" + f.Name())
+		} else {
+			s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: f})
+			// fmt.Println("file ", f.Name())
+		}
+	}
 }
 
 // Scanner is the worker go-routine to do the work
@@ -92,8 +119,10 @@ func (s *Scanner) Scanner() {
 				if entry.IsDir() {
 					//s.scangroup.Add(1)
 					s.FileMutex.Lock()
-					s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: entry})
+					// s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: entry})
+					s.Tree[dir] = append(s.Tree[dir], entry)
 					s.FileMutex.Unlock()
+
 					// this could block
 					/*
 						go func(name string) {
@@ -104,13 +133,15 @@ func (s *Scanner) Scanner() {
 				} else {
 					totalsize += entry.Size()
 				}
+
 			}
 
 			// append after handling directories, to make sure directories are created first
 			s.FileMutex.Lock()
 			for _, entry := range direntries {
 				if !entry.IsDir() {
-					s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: entry})
+					// s.Files = append(s.Files, pfalib.DirEntry{Path: dir, File: entry})
+					s.Tree[dir] = append(s.Tree[dir], entry)
 				} else {
 					// this could block,
 					// moved here, so we descend after local files
