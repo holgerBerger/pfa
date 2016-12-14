@@ -66,15 +66,13 @@ func (w *ArchiveWriter) Close() (int64, time.Duration, int64, int64) {
 
 /************* private functions **************/
 
-// readWorker runs in parallel and processes ibnput objects, supports
+// readWorker runs in parallel and processes input objects, supports
 // files and directories
 func (w *ArchiveWriter) readWorker() {
 	w.workgroup.Add(1)
 	for f := range w.appendchannel {
 		if f.File.IsDir() {
 			w.readDir(f)
-			// TODO directory handling
-			//fmt.Fprint(os.Stderr, "file <", path.Join(f.Path,f.File.Name()), "> is of unsupported type.\n")
 		} else if f.File.Mode().IsRegular() {
 			w.readFile(f)
 		} else {
@@ -121,6 +119,7 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 }
 
 func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
+	fmt.Println("writing dir header ", file.File.Name())
 	fh, err := json.Marshal(DirectorySection{
 		path.Join(file.Path, file.File.Name()),
 		0, 0, "", "", 0, 0, 0,
@@ -139,6 +138,7 @@ func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
 
 // writeFileHeader writes header to archive and returns unique id for the file
 func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
+	fmt.Println("writing file header ", file.File.Name())
 	w.idlock.Lock()
 	id := w.nextid
 	w.nextid++

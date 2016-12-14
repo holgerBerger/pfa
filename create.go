@@ -56,7 +56,12 @@ func create(args []string) {
 
 	// append all files
 	for _, f := range scanner.Files {
-		archiver.AppendFile(f)
+		// fmt.Println("adding", f.Path, f.File.Name())
+		if f.Path != "" {
+			archiver.AppendFile(f)
+		} else {
+			// ignore markers
+		}
 	}
 
 	// finalize archive

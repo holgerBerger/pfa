@@ -84,13 +84,14 @@ func (s *Scanner) StartScan(nr int) {
 		s.TotalSize += <-s.sizeChannel
 	}
 
+	// sort the files so parents are in s.Files before sibblings
 	for _, r := range s.Roots {
 		s.serialize(r)
 	}
 
-	for _, f := range s.Files {
-		fmt.Println(f.Path, f.File.Name())
-	}
+	//	for _, f := range s.Files {
+	//		fmt.Println(f.Path, f.File.Name())
+	//	}
 
 }
 
@@ -105,6 +106,7 @@ func (s *Scanner) serialize(dir string) {
 			// fmt.Println("file ", f.Name())
 		}
 	}
+	s.Files = append(s.Files, pfalib.DirEntry{Path: "", File: nil})
 }
 
 // Scanner is the worker go-routine to do the work
