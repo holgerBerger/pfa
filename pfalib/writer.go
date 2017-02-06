@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -23,19 +24,21 @@ type DirEntry struct {
 
 // ArchiveWriter is the archive streaming object
 type ArchiveWriter struct {
-	writer        io.Writer       // stream to write to
-	blocksize     int32           // reading blocksize
-	numreaders    int             // number of parallel readers
-	appendchannel chan DirEntry   // channel to send files through for appending
-	workgroup     *sync.WaitGroup // waitgroup for readers
-	writerlock    *sync.Mutex     // lock to protect writer
-	nextid        int64           // next fileid to be written
-	idlock        *sync.Mutex     // mutex to protect nextid
-	starttime     time.Time       // time of creation of writer
-	byteswritten  int64           // bytes written to file
-	cbyteswritten int64           // bytes written after compression
-	compression   CompressionType // type of compression
-	crctable      *crc64.Table    // crc polynomial
+	writer        io.Writer           // stream to write to
+	blocksize     int32               // reading blocksize
+	numreaders    int                 // number of parallel readers
+	appendchannel chan DirEntry       // channel to send files through for appending
+	workgroup     *sync.WaitGroup     // waitgroup for readers
+	writerlock    *sync.Mutex         // lock to protect writer
+	nextid        int64               // next fileid to be written
+	idlock        *sync.Mutex         // mutex to protect nextid
+	starttime     time.Time           // time of creation of writer
+	byteswritten  int64               // bytes written to file
+	cbyteswritten int64               // bytes written after compression
+	compression   CompressionType     // type of compression
+	crctable      *crc64.Table        // crc polynomial
+	dircache      map[string]DirEntry // rememer directories already created
+	dircachelock  *sync.RWMutex       // lock to protect dircache
 }
 
 // NewArchiveWriter creates a new archive object,
@@ -44,7 +47,7 @@ type ArchiveWriter struct {
 // reading with "blocksize" with "numreaders" reading goroutines
 func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compression CompressionType) *ArchiveWriter {
 	archivewriter := ArchiveWriter{writer, blocksize, numreaders, make(chan DirEntry, 1), new(sync.WaitGroup),
-		new(sync.Mutex), 1, new(sync.Mutex), time.Now(), 0, 0, compression, nil}
+		new(sync.Mutex), 1, new(sync.Mutex), time.Now(), 0, 0, compression, nil, make(map[string]DirEntry), new(sync.RWMutex)}
 	for i := 0; i < numreaders; i++ {
 		go archivewriter.readWorker()
 	}
@@ -66,14 +69,44 @@ func (w *ArchiveWriter) Close() (int64, time.Duration, int64, int64) {
 
 /************* private functions **************/
 
+// checkPath checks recursive if path was already created
+func (w *ArchiveWriter) checkPath(f string) {
+	if f == "/" {
+		return
+	}
+	w.checkPath(filepath.Dir(f))
+	fmt.Println("checkPath<", f)
+	w.dircachelock.RLock()
+	_, ok := w.dircache[f]
+	w.dircachelock.RUnlock()
+	if !ok {
+		fmt.Println("!! no idea about:", f)
+	}
+}
+
 // readWorker runs in parallel and processes input objects, supports
 // files and directories
 func (w *ArchiveWriter) readWorker() {
 	w.workgroup.Add(1)
 	for f := range w.appendchannel {
 		if f.File.IsDir() {
+			w.dircachelock.RLock()
+			_, ok := w.dircache[f.Path]
+			w.dircachelock.RUnlock()
+			if !ok {
+				w.dircachelock.Lock()
+				w.dircache[f.Path] = f
+				w.dircachelock.Unlock()
+			}
 			w.readDir(f)
 		} else if f.File.Mode().IsRegular() {
+			w.dircachelock.RLock()
+			_, ok := w.dircache[f.Path]
+			w.dircachelock.RUnlock()
+			if !ok {
+				fmt.Println("path not yet made", f.Path, f.File.Name())
+				w.checkPath(f.Path)
+			}
 			w.readFile(f)
 		} else {
 			fmt.Fprint(os.Stderr, "file <", path.Join(f.Path, f.File.Name()), "> is of unsupported type.\n")
