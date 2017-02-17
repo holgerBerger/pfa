@@ -1,5 +1,10 @@
 package pfalib
 
+/*
+	writes into a archive
+
+*/
+
 import (
 	"encoding/binary"
 	"encoding/json"
@@ -236,7 +241,10 @@ func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
 		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(cbuffer))})
 		// write data
 		w.cbyteswritten += int64(len(cbuffer))
-		w.writer.Write(cbuffer)
+		_, err := w.writer.Write(cbuffer)
+		if err != nil {
+			panic(err)
+		}
 	case ZstandardC:
 		cbuffer := make([]byte, 2*w.blocksize)
 		cbuffer, _ = zstd.Compress(cbuffer, buffer)
@@ -246,7 +254,10 @@ func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
 		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(cbuffer))})
 		// write data
 		w.cbyteswritten += int64(len(cbuffer))
-		w.writer.Write(cbuffer)
+		_, err := w.writer.Write(cbuffer)
+		if err != nil {
+			panic(err)
+		}
 	case NoneC:
 		w.writerlock.Lock()
 		// write header
@@ -254,7 +265,10 @@ func (w *ArchiveWriter) writeFileFragment(fileid int64, buffer []byte) {
 		binary.Write(w.writer, binary.BigEndian, FilebodySection{uint64(fileid), uint64(len(buffer))})
 		// write data
 		w.cbyteswritten += int64(len(buffer))
-		w.writer.Write(buffer)
+		_, err := w.writer.Write(buffer)
+		if err != nil {
+			panic(err)
+		}
 	default:
 		panic("archive writer called with unsupported compression type.")
 	}
