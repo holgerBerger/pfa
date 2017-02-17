@@ -63,24 +63,6 @@ func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compres
 
 // AppendFile appends a file into the stream
 func (w *ArchiveWriter) AppendFile(name DirEntry) {
-
-	// sanitize pathes here
-	// remove:
-	// - leading /
-	// - leading ..  // this is already covered elsewhere as well
-
-	for {
-		if name.Path[0] == '/' {
-			name.Path = name.Path[1:]
-		} else {
-			if name.Path[0] == '.' && name.Path[1] == '.' {
-				name.Path = name.Path[2:]
-			} else {
-				break
-			}
-		}
-	}
-
 	if name.File.IsDir() {
 		// create directories serial
 		w.readDir(name)
@@ -187,9 +169,27 @@ func (w *ArchiveWriter) readFile(file DirEntry) {
 }
 
 func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
+
+	// sanitize pathes here
+	// remove:
+	// - leading /
+	// - leading ..  // this is already covered elsewhere as well
+	sanipath := file.Path
+	for {
+		if sanipath[0] == '/' {
+			sanipath = sanipath[1:]
+		} else {
+			if sanipath[0] == '.' && sanipath[1] == '.' {
+				sanipath = sanipath[2:]
+			} else {
+				break
+			}
+		}
+	}
+
 	fmt.Println("writing dir header ", file.File.Name())
 	fh, err := json.Marshal(DirectorySection{
-		path.Join(file.Path, file.File.Name()),
+		path.Join(sanipath, file.File.Name()),
 		0, 0, "", "", 0, 0, 0,
 		uint64(file.File.Mode().Perm()),
 	})
@@ -213,9 +213,26 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 	w.byteswritten += file.File.Size()
 	w.idlock.Unlock()
 
+	// sanitize pathes here
+	// remove:
+	// - leading /
+	// - leading ..  // this is already covered elsewhere as well
+	sanipath := file.Path
+	for {
+		if sanipath[0] == '/' {
+			sanipath = sanipath[1:]
+		} else {
+			if sanipath[0] == '.' && sanipath[1] == '.' {
+				sanipath = sanipath[2:]
+			} else {
+				break
+			}
+		}
+	}
+
 	fh, err := json.Marshal(FileSection{
 		DirectorySection{
-			path.Join(file.Path, file.File.Name()),
+			path.Join(sanipath, file.File.Name()),
 			0, 0, "", "", 0, 0, 0,
 			uint64(file.File.Mode().Perm())},
 		uint64(file.File.Size()),

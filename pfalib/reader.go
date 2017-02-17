@@ -128,7 +128,12 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 				panic(err)
 			}
 			//list = append(list, FileSection{directoryheader, 0, 0, 0})
-			fmt.Println("dir:", directoryheader.Dirname, directoryheader)
+			fmt.Println("dir:", directoryheader.Dirname)
+			err = os.MkdirAll(directoryheader.Dirname, os.FileMode(directoryheader.Mode))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "mkdir:", err)
+			}
+			// FIXME change owner and times
 
 		case uint16(softlinkE): // SOFTLINK ---------------------------------------
 			fmt.Fprintln(os.Stderr, "softlink not yet supported")
@@ -153,7 +158,12 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 func (r *ArchiveReader) fileWorker(file FileSection, datachan chan []byte, fileworker *sync.WaitGroup, crcchan chan uint64) {
 	fmt.Println("starting worker", file.FileID, file.File.Dirname)
 
-	// TODO create file
+	// create file
+	of, err := os.OpenFile(file.File.Dirname, os.O_CREATE|os.O_WRONLY, os.FileMode(file.File.Mode))
+	if err != nil {
+		panic(err)
+	}
+	// FIXME change owner and time
 
 	crc := crc64.New(r.crctable)
 
@@ -176,7 +186,8 @@ func (r *ArchiveReader) fileWorker(file FileSection, datachan chan []byte, filew
 		}
 	}
 
-	// TODO close file
+	// close file
+	of.Close()
 
 	fmt.Println("ending worker", file.FileID)
 	crcchan <- crc.Sum64()
