@@ -108,14 +108,14 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 			if err != nil {
 				panic(err)
 			}
-			close(fileidmap[filebodyheader.FileID])
-			delete(fileidmap, filebodyheader.FileID)
-			crc := <-crcmap[filebodyheader.FileID]
+			close(fileidmap[filefooterheader.FileID])
+			delete(fileidmap, filefooterheader.FileID)
+			crc := <-crcmap[filefooterheader.FileID]
 			if crc != filefooterheader.CRC {
 				fmt.Fprintln(os.Stderr, "Error: archive CRC mismatch!")
 				// TODO add file name here
 			}
-			delete(crcmap, filebodyheader.FileID)
+			delete(crcmap, filefooterheader.FileID)
 
 		case uint16(directoryE): // DIRECTORY -----------------------------------
 			dirheaderbuffer := make([]byte, sectionheader.HeaderSize)
@@ -128,7 +128,7 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 				panic(err)
 			}
 			//list = append(list, FileSection{directoryheader, 0, 0, 0})
-			fmt.Println("dir:", directoryheader.Dirname)
+			fmt.Println("dir:", directoryheader.Dirname, directoryheader)
 
 		case uint16(softlinkE): // SOFTLINK ---------------------------------------
 			fmt.Fprintln(os.Stderr, "softlink not yet supported")

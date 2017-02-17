@@ -63,7 +63,7 @@ type FilebodySection struct {
 
 // FileFooter marks end of a file
 type FileFooter struct {
-	FileIO uint64
+	FileID uint64
 	CRC    uint64
 }
 

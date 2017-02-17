@@ -63,6 +63,24 @@ func NewArchiveWriter(writer io.Writer, blocksize int32, numreaders int, compres
 
 // AppendFile appends a file into the stream
 func (w *ArchiveWriter) AppendFile(name DirEntry) {
+
+	// sanitize pathes here
+	// remove:
+	// - leading /
+	// - leading ..  // this is already covered elsewhere as well
+
+	for {
+		if name.Path[0] == '/' {
+			name.Path = name.Path[1:]
+		} else {
+			if name.Path[0] == '.' && name.Path[1] == '.' {
+				name.Path = name.Path[2:]
+			} else {
+				break
+			}
+		}
+	}
+
 	if name.File.IsDir() {
 		// create directories serial
 		w.readDir(name)
@@ -211,7 +229,7 @@ func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
 	// write header
 	w.writerlock.Lock()
 	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(fileE), uint16(len(fh))})
-	w.writer.Write(fh)
+	w.writer.Write(fh) // write header
 	w.writerlock.Unlock()
 
 	return id
@@ -224,6 +242,8 @@ func (w *ArchiveWriter) writeFileFooter(fileid int64, crc uint64) {
 	// write header
 	binary.Write(w.writer, binary.BigEndian, SectionHeader{uint32(0x46503141), uint16(filefooterE), uint16(0)})
 	binary.Write(w.writer, binary.BigEndian, FileFooter{uint64(fileid), crc})
+
+	//fmt.Println("footer", fileid)
 
 	w.writerlock.Unlock()
 }
