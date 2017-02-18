@@ -129,10 +129,11 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 				panic(err)
 			}
 			//list = append(list, FileSection{directoryheader, 0, 0, 0})
-			fmt.Println("dir:", directoryheader.Dirname)
+			// fmt.Println("dir:", directoryheader.Dirname)
 			err = os.MkdirAll(directoryheader.Dirname, os.FileMode(directoryheader.Mode))
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "mkdir:", err)
+				panic(err)
+				//fmt.Fprintln(os.Stderr, "mkdir:", err)
 			}
 			// FIXME change owner and times
 
@@ -157,7 +158,7 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 
 //
 func (r *ArchiveReader) fileWorker(file FileSection, datachan chan []byte, fileworker *sync.WaitGroup, crcchan chan uint64) {
-	fmt.Println("starting worker", file.FileID, file.File.Dirname)
+	//fmt.Println("starting worker", file.FileID, file.File.Dirname)
 
 	// create file, if it exists, fail and delete it first
 	of, err := os.OpenFile(file.File.Dirname, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(file.File.Mode))
@@ -202,7 +203,7 @@ func (r *ArchiveReader) fileWorker(file FileSection, datachan chan []byte, filew
 	// close file
 	of.Close()
 
-	fmt.Println("ending worker", file.FileID)
+	//fmt.Println("ending worker", file.FileID)
 	crcchan <- crc.Sum64()
 	fileworker.Done()
 }
