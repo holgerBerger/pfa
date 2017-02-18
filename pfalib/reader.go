@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"syscall"
 
 	"github.com/Datadog/zstd"
 	"github.com/golang/snappy"
@@ -158,10 +159,22 @@ func (r *ArchiveReader) processFile(reader *os.File) {
 func (r *ArchiveReader) fileWorker(file FileSection, datachan chan []byte, fileworker *sync.WaitGroup, crcchan chan uint64) {
 	fmt.Println("starting worker", file.FileID, file.File.Dirname)
 
-	// create file
-	of, err := os.OpenFile(file.File.Dirname, os.O_CREATE|os.O_WRONLY, os.FileMode(file.File.Mode))
+	// create file, if it exists, fail and delete it first
+	of, err := os.OpenFile(file.File.Dirname, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(file.File.Mode))
 	if err != nil {
-		panic(err)
+		if ierr, ok := err.(*os.PathError); ok && ierr.Err == syscall.EEXIST {
+			err = os.Remove(file.File.Dirname)
+			if err != nil {
+				panic(err)
+			}
+			// open again, if it fails again, bail out
+			of, err = os.OpenFile(file.File.Dirname, os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(file.File.Mode))
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
 	}
 	// FIXME change owner and time
 
@@ -173,14 +186,14 @@ func (r *ArchiveReader) fileWorker(file FileSection, datachan chan []byte, filew
 		case uint16(SnappyC):
 			buffer, _ := snappy.Decode(nil, data)
 			crc.Write(buffer)
-			// TODO write to file
+			of.Write(buffer)
 		case uint16(ZstandardC):
 			buffer, _ := zstd.Decompress(nil, data)
 			crc.Write(buffer)
-			// TODO write to file
+			of.Write(buffer)
 		case uint16(NoneC):
 			crc.Write(data)
-			// TODO write to file
+			of.Write(data)
 		default:
 			panic("unsupported compression type.")
 		}
