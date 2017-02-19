@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -160,7 +161,7 @@ func createMultiple(args []string, n int) {
 
 // create outfile file
 // work stealing experiment
-func createMultiple2(args []string, n int) {
+func createMultiple2(args []string, n int, nodes string) {
 	// we scan all files beforehand, to get an idea how big the tree is
 	// this wastes some time for large trees, but we scan fast...
 	scanner := NewScanner()
@@ -189,21 +190,43 @@ func createMultiple2(args []string, n int) {
 		compressionmethod = pfalib.ZstandardC
 	}
 
-	outfile := make([]*os.File, n, n)
-	boutfile := make([]*bufio.Writer, n, n)
-	archiver := make([]*pfalib.ArchiveWriter, n, n)
+	var (
+		outfile  []*os.File
+		boutfile []*bufio.Writer
+		archiver []pfalib.ArchiveWriterInterface
+	)
 
-	// create outfiles
-	for i := 0; i < n; i++ {
-		var err error
-		outfile[i], err = os.Create(fmt.Sprintf("%s.%d", opts.Output, i))
-		if err != nil {
-			panic("could not open outfile!")
+	// local or remote?
+	fmt.Println(nodes)
+	if nodes == "" {
+		outfile = make([]*os.File, n, n)
+		boutfile = make([]*bufio.Writer, n, n)
+		archiver = make([]pfalib.ArchiveWriterInterface, n, n)
+		// create outfiles
+		for i := 0; i < n; i++ {
+			var err error
+			outfile[i], err = os.Create(fmt.Sprintf("%s.%d", opts.Output, i))
+			if err != nil {
+				panic("could not open outfile!")
+			}
+			boutfile[i] = bufio.NewWriterSize(outfile[i], int(opts.Blocksize*1024))
+
+			// create archive writer
+			archiver[i] = pfalib.NewArchiveWriter(boutfile[i], opts.Blocksize*1024, opts.Readers, compressionmethod)
 		}
-		boutfile[i] = bufio.NewWriterSize(outfile[i], int(opts.Blocksize*1024))
-
-		// create archive writer
-		archiver[i] = pfalib.NewArchiveWriter(boutfile[i], opts.Blocksize*1024, opts.Readers, compressionmethod)
+	} else { // we have multiple nodes
+		n = len(strings.Split(nodes, ","))
+		// we need those arrays to check igf they are empty
+		outfile = make([]*os.File, n, n)
+		boutfile = make([]*bufio.Writer, n, n)
+		//
+		archiver = make([]pfalib.ArchiveWriterInterface, n, n)
+		i := 0
+		for _, node := range strings.Split(nodes, ",") {
+			// create local proxy
+			archiver[i] = NewLocalProxy(node, i, fmt.Sprintf("%s.%d", opts.Output, i), opts.Blocksize*1024, opts.Readers, compressionmethod)
+			i++
+		}
 	}
 
 	// simple load balancer
@@ -241,8 +264,11 @@ func createMultiple2(args []string, n int) {
 			}
 
 			files, timediff, bytes, cbytes := archiver[n].Close()
-			boutfile[n].Flush()
-			outfile[n].Close()
+			// if local, close files
+			if boutfile[n] != nil {
+				boutfile[n].Flush()
+				outfile[n].Close()
+			}
 
 			// print statistics
 			fmt.Printf("written %d files in %1.1f seconds with %1.2f MB/s.\n",

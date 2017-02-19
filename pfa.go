@@ -18,6 +18,7 @@ var opts struct {
 	Output      string `long:"output" short:"o" description:"file name of output archive in create mode"`
 	Input       string `long:"input" short:"i" description:"file name of input archive in list and extract mode"`
 	Compression string `long:"compression" short:"p" default:"none" description:"compression, one of <none>, <zstd> or <snappy>"`
+	Multinode   string `long:"nodes" short:"n" default:"" description:"comma separated list of ssh reachable hosts to use"`
 }
 
 func main() {
@@ -33,8 +34,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, "create mode requires output file!")
 			os.Exit(1)
 		}
-		if opts.Files > 1 {
-			createMultiple2(args, opts.Files)
+		if opts.Files > 1 || opts.Multinode != "" {
+			createMultiple2(args, opts.Files, opts.Multinode)
 		} else {
 			create(args)
 		}
