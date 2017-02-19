@@ -187,7 +187,7 @@ func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
 		}
 	}
 
-	fmt.Println("writing dir header ", file.File.Name())
+	//fmt.Println("writing dir header ", file.File.Name())
 	fh, err := json.Marshal(DirectorySection{
 		path.Join(sanipath, file.File.Name()),
 		0, 0, "", "", 0, 0, 0,
@@ -206,7 +206,7 @@ func (w *ArchiveWriter) writeDirHeader(file DirEntry) {
 
 // writeFileHeader writes header to archive and returns unique id for the file
 func (w *ArchiveWriter) writeFileHeader(file DirEntry) int64 {
-	fmt.Println("writing file header ", file.File.Name())
+	//fmt.Println("writing file header ", file.File.Name())
 	w.idlock.Lock()
 	id := w.nextid
 	w.nextid++
