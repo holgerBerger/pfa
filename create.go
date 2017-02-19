@@ -82,6 +82,7 @@ func create(args []string) {
 func createMultiple(args []string, n int) {
 	// we scan all files beforehand, to get an idea how big the tree is
 	// this wastes some time for large trees, but we scan fast...
+	// BUG this version is buggy, use version 2
 	scanner := NewScanner()
 	for _, dir := range args {
 		scanner.AddDir(dir)
@@ -133,7 +134,9 @@ func createMultiple(args []string, n int) {
 		go func(n int) {
 			balancergroup.Add(1)
 			for f := range balancer {
-				archiver[n].AppendFile(f)
+				if f.Path != "" {
+					archiver[n].AppendFile(f)
+				}
 			}
 			files, timediff, bytes, cbytes := archiver[n].Close()
 			boutfile[n].Flush()
@@ -213,6 +216,15 @@ func createMultiple2(args []string, n int) {
 		go func(n int) {
 			balancergroup.Add(1)
 
+			// directories first
+			for ii := 0; ii < len(scanner.Files); ii++ {
+				f := scanner.Files[ii]
+				if f.Path != "" && f.File.IsDir() {
+					archiver[n].AppendFile(f) // FIXME [n] or [i]
+				}
+			}
+
+			// fles
 			var f pfalib.DirEntry
 			for {
 				mutex.Lock()
@@ -223,7 +235,9 @@ func createMultiple2(args []string, n int) {
 				f, scanner.Files = scanner.Files[len(scanner.Files)-1], scanner.Files[:len(scanner.Files)-1]
 				mutex.Unlock()
 				runtime.Gosched() // have to call sched here, so others get some data
-				archiver[n].AppendFile(f)
+				if f.Path != "" && !f.File.IsDir() {
+					archiver[n].AppendFile(f) // FIXME [i] ??
+				}
 			}
 
 			files, timediff, bytes, cbytes := archiver[n].Close()
