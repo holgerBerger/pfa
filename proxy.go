@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -28,8 +29,18 @@ func NewLocalProxy(node string, index int, filename string, blocksize int32, num
 	var err error
 	proxy := LocalProxy{node, nil, nil, nil}
 	// FIXME hard coded creation!!
-	proxy.cmd = exec.Command("/usr/bin/ssh", node, "/tmp/pfa", "-c", "-o", fmt.Sprintf("%s.%d", opts.Output, index), "-b",
-		strconv.Itoa(int(opts.Blocksize)), "-r", strconv.Itoa(int(opts.Readers)), "-p", opts.Compression)
+
+	var outpath string
+	// output absolue path?
+	if opts.Output[0] == '/' {
+		outpath = fmt.Sprintf("%s.%d", opts.Output, index)
+	} else {
+		cwd, _ := os.Getwd()
+		outpath = fmt.Sprintf("%s/%s.%d", cwd, opts.Output, index)
+	}
+
+	proxy.cmd = exec.Command("/usr/bin/ssh", node, "~/bin/pfa", "--remoteagent", "-c", "-o", outpath, "-b",
+		strconv.Itoa(int(opts.Blocksize)), "-r", strconv.Itoa(int(opts.Readers)), "-p", opts.Compression, "2>/tmp/pfa_error", ">/tmp/pfa_output")
 	proxy.stdin, err = proxy.cmd.StdinPipe()
 	if err != nil {
 		panic(err)
@@ -44,6 +55,7 @@ func NewLocalProxy(node string, index int, filename string, blocksize int32, num
 
 // AppendFile sends path+name to remote side
 func (l LocalProxy) AppendFile(name pfalib.DirEntry) {
+	fmt.Println("sending", name.Path, name.File.Name())
 	l.stdin.Write([]byte(name.Path + "/" + name.File.Name() + "\n"))
 }
 
@@ -101,8 +113,11 @@ func NewRemoteProxy() RemoteProxy {
 				break
 			}
 		}
-		tmpstat, err := os.Stat(string(filename))
-		f := pfalib.DirEntry{Path: string(filename), File: tmpstat}
+		tmpstat, err := os.Stat(string(filename[:len(filename)-1]))
+		if err != nil {
+			panic(err)
+		}
+		f := pfalib.DirEntry{Path: filepath.Dir(string(filename[:len(filename)-1])), File: tmpstat}
 		// fmt.Println("adding", f.Path, f.File.Name())
 		if f.Path != "" {
 			archiver.AppendFile(f)

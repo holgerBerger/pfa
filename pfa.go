@@ -32,6 +32,7 @@ func main() {
 
 	// remote agent (no file scanning, but reads file list from command line)
 	if opts.RemoteAgent {
+		fmt.Println("REMOTE - READING from STDIN")
 		if opts.Create {
 			_ = NewRemoteProxy()
 		} else {
