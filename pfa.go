@@ -19,6 +19,7 @@ var opts struct {
 	Input       string `long:"input" short:"i" description:"file name of input archive in list and extract mode"`
 	Compression string `long:"compression" short:"p" default:"none" description:"compression, one of <none>, <zstd> or <snappy>"`
 	Multinode   string `long:"nodes" short:"n" default:"" description:"comma separated list of ssh reachable hosts to use"`
+	RemoteAgent bool   `long:"remoteagent" hidden:"t" description:"remote agent, not for user"`
 }
 
 func main() {
@@ -29,6 +30,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// remote agent (no file scanning, but reads file list from command line)
+	if opts.RemoteAgent {
+		if opts.Create {
+			_ = NewRemoteProxy()
+		} else {
+			fmt.Println("Error: not yet supported!")
+		}
+		os.Exit(0)
+	}
+
+	// normal mode, everything done here
 	if opts.Create {
 		if len(opts.Output) == 0 {
 			fmt.Fprintln(os.Stderr, "create mode requires output file!")
