@@ -55,7 +55,7 @@ func NewLocalProxy(node string, index int, filename string, blocksize int32, num
 
 // AppendFile sends path+name to remote side
 func (l LocalProxy) AppendFile(name pfalib.DirEntry) {
-	fmt.Println("sending", name.Path, name.File.Name())
+	fmt.Println("sending", name.Path, name.File.Name(),"to",l.node)
 	l.stdin.Write([]byte(name.Path + "/" + name.File.Name() + "\n"))
 }
 

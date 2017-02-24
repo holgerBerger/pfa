@@ -243,7 +243,7 @@ func createMultiple2(args []string, n int, nodes string) {
 			for ii := 0; ii < len(scanner.Files); ii++ {
 				f := scanner.Files[ii]
 				if f.Path != "" && f.File.IsDir() {
-					archiver[n].AppendFile(f) // FIXME [n] or [i]
+					archiver[n].AppendFile(f) // n is argument of goroutine here
 				}
 			}
 
@@ -259,7 +259,7 @@ func createMultiple2(args []string, n int, nodes string) {
 				mutex.Unlock()
 				runtime.Gosched() // have to call sched here, so others get some data
 				if f.Path != "" && !f.File.IsDir() {
-					archiver[n].AppendFile(f) // FIXME [i] ??
+					archiver[n].AppendFile(f) // n is argument of goroutine here
 				}
 			}
 
